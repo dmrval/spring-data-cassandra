@@ -26,6 +26,7 @@ import org.springframework.data.cassandra.core.cql.keyspace.CreateTableSpecifica
 import org.springframework.data.cassandra.core.cql.keyspace.CreateUserTypeSpecification;
 import org.springframework.data.cassandra.core.mapping.CassandraPersistentEntity;
 import org.springframework.data.cassandra.core.mapping.CassandraPersistentProperty;
+import org.springframework.data.cassandra.core.mapping.EmbeddedEntityOperations;
 import org.springframework.data.cassandra.core.mapping.UserTypeResolver;
 import org.springframework.data.convert.CustomConversions;
 import org.springframework.data.mapping.MappingException;
@@ -55,6 +56,8 @@ public class SchemaFactory {
 
 	private final ColumnTypeResolver typeResolver;
 
+	private final EmbeddedEntityOperations embeddedEntityOperations;
+
 	/**
 	 * Creates a new {@link SchemaFactory} given {@link CassandraConverter}.
 	 *
@@ -67,6 +70,7 @@ public class SchemaFactory {
 		this.mappingContext = converter.getMappingContext();
 		this.typeResolver = new DefaultColumnTypeResolver(mappingContext, ShallowUserTypeResolver.INSTANCE,
 				converter::getCodecRegistry, converter::getCustomConversions);
+		this.embeddedEntityOperations = new EmbeddedEntityOperations(this.mappingContext);
 	}
 
 	/**
@@ -88,6 +92,7 @@ public class SchemaFactory {
 		this.mappingContext = mappingContext;
 		this.typeResolver = new DefaultColumnTypeResolver(mappingContext, ShallowUserTypeResolver.INSTANCE,
 				() -> codecRegistry, () -> customConversions);
+		this.embeddedEntityOperations = new EmbeddedEntityOperations(this.mappingContext);
 	}
 
 	/**
@@ -151,6 +156,16 @@ public class SchemaFactory {
 								primaryKeyProperty.getPrimaryKeyOrdering());
 					}
 				}
+			}else if(property.isEmbedded() && property.isEntity()) {
+
+				CassandraPersistentEntity<?> embeddedEntity = embeddedEntityOperations.getEntity(property);
+
+				for (CassandraPersistentProperty embeddedProperty : embeddedEntity) {
+
+					DataType dataType = getDataType(embeddedProperty);
+					specification.column(embeddedProperty.getRequiredColumnName(), dataType);
+				}
+
 			} else {
 				DataType type = UserTypeUtil.potentiallyFreeze(getDataType(property));
 
@@ -167,6 +182,7 @@ public class SchemaFactory {
 		if (specification.getPartitionKeyColumns().isEmpty()) {
 			throw new MappingException(String.format("No partition key columns found in entity [%s]", entity.getType()));
 		}
+
 
 		return specification;
 	}

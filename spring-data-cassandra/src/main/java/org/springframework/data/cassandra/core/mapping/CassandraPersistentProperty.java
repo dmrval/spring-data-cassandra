@@ -158,6 +158,14 @@ public interface CassandraPersistentProperty
 	boolean isPrimaryKeyColumn();
 
 	/**
+	 * @return {@literal true} if the property should be embedded.
+	 * @since 3.0
+	 */
+	default boolean isEmbedded() {
+		return findAnnotation(Embedded.class) != null;
+	}
+
+	/**
 	 * Find an {@link AnnotatedType} by {@code annotationType} derived from the property type. Annotated type is looked up
 	 * by introspecting property field/accessors. Collection/Map-like types are introspected for type annotations within
 	 * type arguments.
